@@ -1,0 +1,6 @@
+from FileManager import connect_drive
+from GeneralDataHandler import combine_generation_and_exogenous_data
+
+connect_drive()
+
+combine_generation_and_exogenous_data()

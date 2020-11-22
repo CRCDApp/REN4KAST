@@ -11,321 +11,24 @@ Original file is located at
 #connecting to drive
 """
 
-from google.colab import drive
-drive.mount('/content/drive')
-
-"""# Get request method"""
-
-import json
-import requests
-from datetime import datetime, timedelta
-
-
-
-cities=[      "memmingen" ,"Rostock Warnem-u00fcnde","Osnabrueck","Braunschweig","Cuxhaven","Luebeck","Berlin","Bonn","Hof","Freudenstadt","München","Meiningen"]
-station_Ids = ["10947",   "10170" ,    "10315"    ,"10348"  ,"10131"  ,"10156"  ,"10382"  ,"10513"  ,"10685"  ,"10815"  ,"10865"  ,"10548"]
-latitude=     ["47.9833","54.1833"    ,"52.1333"  ,"52.3"   ,"53.8667","53.8167","52.5667","50.8667","50.3167","48.45"  ,"48.1333","50.5667"]
-longitude=    ["10.2333","12.0833"    ,"7.7"      ,"10.45"  ,"8.7"    ,"10.7"   ,"13.3167","7.1667" ,"11.8833","8.4167" ,"11.55"  ,"10.3833"]
-altitude=     ["634",     "4" ,       "48"        ,"81"     ,"5"      ,"14"     ,"37"     ,"91"     ,"565"    ,"797"    ,"520"    ,"450"]
-
-
-start=datetime.today().strftime('%Y-%m-%d')
-end=(datetime.today()+timedelta(days=1)).strftime('%Y-%m-%d')
-altitude = -999
-
-def get_request(label="", latitude=44.083, longitude=5.059, altitude=-999,start='2017-01-01',end='2017-01-02'):
-  url = 'http://www.soda-pro.com/api/jsonws/helioclim3-forecast-portlet.hc3request/proxy?url=http%253A%252F%252Fwww.soda-is.com%252Fcom%252Fhc3v5_meteo_soda_get.php%253Flatlon%253D{}%252C{}%2526alt%253D-999%2526date1%253D{}%2526date2%253D{}%2526summar%253D15%2526refTime%253DUT%2526tilt%253D0%2526azim%253D180%2526al%253D0.2%2526horizon%253D1%2526outcsv%253D1%2526forecast%253D2%2526gamma-sun-min%253D12%2526header%253D1%2526code%253D1%2526format%253Dunified'.format(latitude,longitude,start,end)
-  resp = requests.get(url).content
-  link = str(resp).split("value>")
-  
-  csvfile=requests.get(link[1][:len(link[1])-2]).content
-  
-  csvfilestring = csvfile.decode("utf-8")
-  #removing headers
-  prepared_data = csvfilestring.splitlines()[31:]
-  # saving in to a csv file
-  with open('/content/drive/My Drive/Colab Notebooks/Renewables/RadiationData/{}.csv'.format(label), 'w') as filehandle:
-    for listitem in prepared_data:
-        listitem = listitem.replace(';',',')
-        filehandle.write('%s\n' % listitem)
-
-"""#Defining columns and cities, Getting station IDs which needs to be set manually"""
-
-for i in range(len(cities)):
-  get_request(label="realtime{}-{}___{}".format(cities[i],start,end), latitude=latitude[i], longitude=longitude[i], altitude=altitude,start=start,end=end)
-  print(cities[i])
-
-"""#removing extra columns & updating wind speed
-
-m/s to km/h ~ 3.6
-"""
-
-import pandas as pd
-
-def write_into_csv(output=[],name="merged",columns=[]):
-  output.to_csv('/content/drive/My Drive/Colab Notebooks/Renewables/RadiationData/{}.csv'.format(name), columns=columns)
-
-def cleaning_initial_data(cities=[], start="2017-01-01", end="2017-01-01"):
-    df = []
-    for i in range(len(cities)):
-      df.append(pd.read_csv('/content/drive/My Drive/Colab Notebooks/Renewables/RadiationData/{}.csv'.format("realtime{}-{}___{}".format(cities[i],start,end)), sep=','))
-      df[i].index = pd.date_range(start="{} 00:00:00".format(start), periods=len(df[i]), freq='15Min')
-      df[i].index.name = 'time'
-      df[i]['Wind speed'] = [element * 3.6 for element in df[i]['Wind speed']]
-      # dropping old time column
-      #df[i].drop(df[i].columns[0], axis=1)
-      print("\n File name: {}-{}___{} \n\n".format(cities[i],start,end))
-      write_into_csv(output=df[i],name="new{}-{}___{}".format(cities[i],start,end),columns=['Global Horiz','Wind speed'])
-    return df
-df = cleaning_initial_data(cities=cities, start=start, end=end)
-
-import pandas as pd
-
-import pandas as pd
-
-def read_data(cities=[], start="2017-01-01", end="2017-01-01"):
-    df = []
-    for i in range(len(cities)):
-      df.append(pd.read_csv('/content/drive/My Drive/Colab Notebooks/Renewables/RadiationData/{}.csv'.format("new{}-{}___{}".format(cities[i],start,end)), sep=','))
-      df[i].index = pd.date_range(start="{} 00:00:00".format(start), periods=len(df[i]), freq='15Min')
-      df[i].index.name = 'time'
-      # dropping time column
-      #df[i] = df[i].drop(columns=['time'])
-      print(" File name: {}-{}___{} \n".format(cities[i],start,end))
-    return df
-df = read_data(cities=cities, start=start, end=end)
-
-def show_data_stats(input_data):
-  mean = input_data.mean()
-  variance = input_data.var()
-  standardDeviation = input_data.std()
-  min = input_data.min()
-  max = input_data.max()
-  dataStatistics = pd.concat([mean, variance, standardDeviation, min, max], axis=1)
-  dataStatistics.columns = ['Mean', 'Variance', 'Standard Deviation', 'Min', 'Max']
-  return dataStatistics
-
-show_data_stats(df[0])
-
-"""#2.   Preparing Data For getting merged"""
+"""### merging data sets and then up sampling"""
 
 import datetime
-#   *****   Important Assumption    *****
-# taget_columns[0] is time stamp
-def merge_datasets_by_taking_average(df=[], target_columns=[], cities=[]):
-    output=[]
-    for row in range(len(df[0])):
-        output.append([])
-        for col in target_columns:
-          sum=0
-          for i in range(len(cities)):
-              
-              if (col==target_columns[0]):
-                if (df[i][target_columns[0]][row] != df[0][target_columns[0]][row]):
-                  print("ERROR: TIME did not match!", row, cities[i])
-                  return 
-              else:
-                sum = sum + float(df[i][col][row])
-          if(col==target_columns[0]):
-            output[row].append(df[0][target_columns[0]][row])  
-          else:
-            mean = sum/(len(cities))
-            output[row].append(round(mean,2))
-            
-        print(output[row])
-    return output
 
-import csv
-def write_merged_into_csv(output=[],name="merged",columns=[]):
-  with open('/content/drive/My Drive/Colab Notebooks/Renewables/RadiationData/{}.csv'.format(name), 'w', newline='') as csvfile:
-          csv_writer = csv.writer(csvfile, delimiter=',',
-                                  quotechar='|', quoting=csv.QUOTE_MINIMAL)
-          csv_writer.writerow(columns)
-          for xx in output:
-              csv_writer.writerow([xx[i] for i in range(len(columns))])
-
-dataframe = read_data(cities=cities, start=start, end=end)
-
-#dropping first column
-target_columns = dataframe[0].columns
-
-output = merge_datasets_by_taking_average(df=dataframe, target_columns=target_columns, cities=cities)
-
-write_merged_into_csv(output=output,name="RadiationDatazaq",columns=target_columns)
-
-dataframe[0].index[10]
-
-def show_data_stats(input_data):
-  mean = input_data.mean()
-  variance = input_data.var()
-  standardDeviation = input_data.std()
-  min = input_data.min()
-  max = input_data.max()
-  dataStatistics = pd.concat([mean, variance, standardDeviation, min, max], axis=1)
-  dataStatistics.columns = ['Mean', 'Variance', 'Standard Deviation', 'Min', 'Max']
-  return dataStatistics
-
-
-df = pd.read_csv('/content/drive/My Drive/Colab Notebooks/Renewables/RadiationData/RadiationDatazaq.csv', sep=',',index_col=0)
-show_data_stats(df)
-
-df
-
-"""#GETTING ENTSOE REAL TIME DATA"""
-
-!python3 -m pip install entsoe-py
-
-from entsoe import EntsoePandasClient
-import pandas as pd
-from entsoe import EntsoeRawClient
-
-client = EntsoePandasClient("94aa148a-330b-4eee-ba0c-8a5eb0b17825")
-
-start = pd.Timestamp('20200801', tz='Etc/GMT')
-end = pd.Timestamp('20200803', tz='Etc/GMT')
-country_code = 'DE'  # Germany
-
-# methods that return Pandas Series
-# dar in method 
-#'documentType': 'A75',
-#'processType': 'A16',
-#https://github.com/EnergieID/entsoe-py/blob/5d176699472744c1acef546410826da6549112cf/entsoe/entsoe.py#L270
-#
-entsoe_data = client.query_generation(country_code, start=start,end=end, psr_type=None)
-
-entsoe_data.to_csv('/content/drive/My Drive/Colab Notebooks/Renewables/ENTSOE-DATA/ENTSOE-{}-{}-{}.csv'.format(country_code,start,end), sep=',', encoding='utf-8')
-entsoe_data.head()
-#converting to GMT
-entsoe_data.index = entsoe_data.index.tz_convert('Etc/GMT')
-entsoe_data.to_csv('/content/drive/My Drive/Colab Notebooks/Renewables/ENTSOE-DATA/GMT-ENTSOE-{}-{}-{}.csv'.format(country_code,start,end), sep=',', encoding='utf-8')
-
-data_normal = pd.read_csv('/content/drive/My Drive/Colab Notebooks/Renewables/ENTSOE-DATA/ENTSOE-{}-{}-{}.csv'.format(country_code,start,end), index_col=0)
-data_normal.head()
-data_gmt = pd.read_csv('/content/drive/My Drive/Colab Notebooks/Renewables/ENTSOE-DATA/GMT-ENTSOE-{}-{}-{}.csv'.format(country_code,start,end), index_col=0)
-data_gmt.tail()
-
-def search_and_print_missing_days(search=[],column=[]):
-  for s in search:
-    count = 0
-    for ii in column:
-      if (s in ii):
-       count = count+1
-    # Here we are using 24 because we have hourly data
-    # !=0 is because of the months that have less than 31 days. 
-    #This could be adjusted in the input is precise about the days of the months
-    #if (count<24 and count != 0):
-    if (count != 96):
-        print(s,"\t", count)
-
-def test_show_null_columns_from_target_columns(data):
-  # the following line could generate null values by the defined method
-  #df[i] = df[i].interpolate(method='linear')
-  for col in data.columns:
-        if (len(data[data[col].isnull()]) > 0):
-          print(col,"\t", len(data[data[col].isnull()]))
-          # Could also print the null indexes
-          print(data[data[col].isnull()].index.tolist())
-
-def fix_and_check_null_values_in_columns(columnName, inputData):
-  newData = inputData.copy()
-  newData[columnName] = newData[columnName].interpolate(method='linear')
-  #newData[columnName] = newData[columnName].interpolate(method='spline', order=2)
-  for index in range(len(inputData)):
-    if(inputData[columnName][index] != newData[columnName][index]):
-       print('INDEX: \t {} \t Old: \t {} \t New: \t {} \t Before: \t {} \t After: \t {}'.format(newData.index[index],inputData[columnName][index],newData[columnName][index],inputData[columnName][index-1],inputData[columnName][index+1]))
-  return newData
-  #fix_and_check_null_values_in_columns('Wind Onshore', data_gmt)
-
-def show_data_stats(input_data):
-  mean = input_data.mean()
-  variance = input_data.var()
-  standardDeviation = input_data.std()
-  min = input_data.min()
-  max = input_data.max()
-  dataStatistics = pd.concat([mean, variance, standardDeviation, min, max], axis=1)
-  dataStatistics.columns = ['Mean', 'Variance', 'Standard Deviation', 'Min', 'Max']
-  return dataStatistics
-
-import calendar
-year = [ 2020]
-test = []
-for year in year:
-  for month in [8]:
-    for day in [1,2,3]:
-      if (month < 9 and day < 9):
-        test.append(str(year)+"-0"+str(month+1)+"-0"+str(day+1))
-      elif (day < 9):
-        test.append(str(year)+"-"+str(month+1)+"-0"+str(day+1))
-      elif (month < 9):
-        test.append(str(year)+"-0"+str(month+1)+"-"+str(day+1))
-      else:
-        test.append(str(year)+"-"+str(month+1)+"-"+str(day+1))
-
-search_and_print_missing_days(test,list(data_gmt.index))
-
-test_show_null_columns_from_target_columns(data_gmt)
-
-"""trying to remove null values but since it has 3 hours delay, error happens cause few last rows are null and it cannot handle it.
-
-For now this step could be ignored
-"""
-
-fixedgmtdata = data_gmt.copy()
-for clm in ['Biomass','Fossil Brown coal/Lignite']:
-  fixedgmtdata= fix_and_check_null_values_in_columns(clm, fixedgmtdata)
-
-fixedgmtdata.to_csv('/content/drive/My Drive/Colab Notebooks/Renewables/ENTSOE-DATA/fixednulls-GMT-ENTSOE-{}-{}-{}.csv'.format(country_code,start,end), sep=',', encoding='utf-8')
-generation_data = pd.read_csv('/content/drive/My Drive/Colab Notebooks/Renewables/ENTSOE-DATA/fixednulls-GMT-ENTSOE-{}-{}-{}.csv'.format(country_code,start,end), index_col=0)
-generation_data.head()
-
-sumBioMassAndHydro = generation_data['Biomass'] + generation_data['Hydro Run-of-river and poundage'] + generation_data['Hydro Water Reservoir'] + generation_data['Geothermal'] + generation_data['Waste']
-sumBioMassAndHydro
-
-sumOthers = generation_data['Wind Offshore'] + generation_data['Wind Onshore'] + generation_data['Solar'] + generation_data['Nuclear'] + generation_data['Fossil Brown coal/Lignite'] + generation_data['Fossil Hard coal'] + generation_data['Fossil Gas'] + generation_data['Hydro Pumped Storage'] + generation_data['Other'] + generation_data['Other renewable'] + generation_data['Fossil Oil'] 
-print(sumOthers)
-
-calcTotal = sumBioMassAndHydro + sumOthers
-calcTotal
-
-RenForecast = generation_data.drop(columns=['Biomass', 'Fossil Brown coal/Lignite', 'Fossil Gas',
-       'Fossil Hard coal', 'Fossil Oil', 'Geothermal', 'Hydro Pumped Storage',
-       'Hydro Run-of-river and poundage', 'Hydro Water Reservoir', 'Nuclear',
-       'Other', 'Waste'])
-RenForecast.insert(0, "calcTotal", calcTotal, True) 
-RenForecast.insert(1, "sumBioMassAndHydro", sumBioMassAndHydro, True) 
-
-RenForecast
-
-start_index = [i for i, j in enumerate(sumBioMassAndHydro.index) if '2020-08-01 00:00:00+00:00' in j][0]
-end_index = [i for i, j in enumerate(sumBioMassAndHydro.index) if '2020-08-02 00:00:00+00:00' in j][0]
-print(sumBioMassAndHydro[start_index:end_index])
-
-bioMassAndHydroAveragePowerGeneration = round(sumBioMassAndHydro[start_index:end_index].mean(),2)
-bioMassAndHydroAveragePowerGeneration
-
-renewablesPercentage = pd.DataFrame(columns=['percentage'], index=[RenForecast.index])
-forecast = RenForecast.copy()
-for index, row in forecast.iterrows():
-    if (row['sumBioMassAndHydro']==0):
-        row['sumBioMassAndHydro'] = bioMassAndHydroAveragePowerGeneration
-    sum_renewables = row['sumBioMassAndHydro'] + row['Other renewable'] + row['Solar'] + row['Wind Offshore'] + row['Wind Onshore']
-    prct = sum_renewables / row['calcTotal']
-    prct = prct * 100
-    renewablesPercentage.loc[index] = [round(prct,2)]
-
-renewablesPercentage
-
-renewablesPercentage.to_csv('/content/drive/My Drive/Colab Notebooks/Renewables/ENTSOE-DATA/final-GMT-ENTSOE-{}-{}-{}.csv'.format(country_code,start,end), sep=',', encoding='utf-8')
-
-"""# TRYING DIFFERENT EXOGENOUS PARAMETERS"""
 
 import tensorflow as tf
 import multiprocessing as mp
-from datetime import timedelta
+
+
+
+"""# TRYING DIFFERENT EXOGENOUS PARAMETERS
+
+"""
+
 print(tf.test.gpu_device_name())
 print("cpu count", mp.cpu_count())
 PATH = "/content/drive/My Drive/"  # @param {type:"string"}
-data_path="/content/drive/My Drive/walk-forward-results/MODELSFORPLOT/"# @param {type:"string"}
+data_path = "/content/drive/My Drive/walk-forward-results/MODELSFORPLOT/"  # @param {type:"string"}
 
 from datetime import datetime, timedelta
 import sys
@@ -367,9 +70,9 @@ def read_and_split_data(target_period_days=3, start_date="2019-07-01 01:00:00", 
                         file_name='twoWeeks'):
     data = pd.read_csv(PATH + '{}.csv'.format(file_name), index_col=0)
     data.index = pd.date_range(start=data.index[0], periods=len(data), freq='15Min')
-    #rengeneration = pd.read_csv('/content/drive/My Drive/generationOnly.csv', index_col=0)
-    #rengeneration.index = pd.date_range(start=data.index[0], periods=len(rengeneration), freq='15Min')
-    #data['renewablespercentage'] = rengeneration["percentage"][:len(data)]
+    # rengeneration = pd.read_csv('/content/drive/My Drive/generationOnly.csv', index_col=0)
+    # rengeneration.index = pd.date_range(start=data.index[0], periods=len(rengeneration), freq='15Min')
+    # data['renewablespercentage'] = rengeneration["percentage"][:len(data)]
 
     # starting the data from the mentioned day
     data = data[data.index >= dateutil.parser.parse(start_date)]
@@ -389,7 +92,7 @@ def read_and_split_data(target_period_days=3, start_date="2019-07-01 01:00:00", 
                                                                                                                exog_columns]]
     # old way
     # exog_train,exog_test = data[0:train_size].loc[:, exog_columns], data[train_size:].loc[:, exog_columns]
-    #print(test)
+    # print(test)
     return train, test, exog_train, exog_test, data
 
 
@@ -429,7 +132,7 @@ def print_describe_residuals(resid, filename='qasd0078.txt'):
 
 def save_photo(test, actual, outputname):
     fig = PLT.figure(num=None, figsize=(25, 10), dpi=80, facecolor='w', edgecolor='k')
-    
+
     #######################
     '''   plt.plot(total_test_sarimax, label='Actual')
     plt.plot(fc_series_sarimax, label='Forecast-SARIMAX')
@@ -444,13 +147,13 @@ def save_photo(test, actual, outputname):
     plt.close(fig)
     '''
     ######################
-    
+
     PLT.plot(test.index, test, test.index, actual, '-')
 
-    #PLT.title('Forecast vs Actuals',fontsize=font_size)
-    #PLT.legend(loc='upper left')
-    #PLT.xlabel('Time [YYYY-MM-DD]', fontsize=font_size)
-    #PLT.ylabel('Percentage of the Renewables [%]', fontsize=font_size)
+    # PLT.title('Forecast vs Actuals',fontsize=font_size)
+    # PLT.legend(loc='upper left')
+    # PLT.xlabel('Time [YYYY-MM-DD]', fontsize=font_size)
+    # PLT.ylabel('Percentage of the Renewables [%]', fontsize=font_size)
 
     PLT.savefig(PATH + '{}.png'.format(outputname))
     # PLT.close()
@@ -557,13 +260,15 @@ def updating_old_configs_file(old_configs_file_name, cfg):
         print(cfg, file=f)
     f.close()
 
+
 def writing_model_execution_time(old_configs_file_name, time):
-    with open(PATH+'{}-TIMES.txt'.format(old_configs_file_name), 'a+') as f:
+    with open(PATH + '{}-TIMES.txt'.format(old_configs_file_name), 'a+') as f:
         print(time, file=f)
     f.close()
 
+
 def writing_total_execution_time(old_configs_file_name, time):
-    with open(PATH+'{}TOTAL-times.txt'.format(old_configs_file_name), 'a+') as f:
+    with open(PATH + '{}TOTAL-times.txt'.format(old_configs_file_name), 'a+') as f:
         print(time, file=f)
     f.close()
 
@@ -600,7 +305,6 @@ def write_top_models_by_measure(model_summaries, model_summary_DTO, size, output
         print("Error in writing " + label)
 
 
-
 def walk_forward(output_file_name, config, old_configs_file_name, number_of_top_models, target_period_days,
                  days_to_test, start_date, dataset_name, exog_columns):
     with tf.device('/device:GPU:0'):
@@ -632,7 +336,7 @@ def walk_forward(output_file_name, config, old_configs_file_name, number_of_top_
                     exog_columns=exog_columns, file_name=dataset_name)
                 # print(train.head) print(test.head)
                 # print(train)
-                
+
                 model_fit, predict = run_and_save_SARIMAX_model(train, test, exog_train, exog_test, config,
                                                                 "walk-forward-results/" + str(
                                                                     config) + '/' + output_file_name + str(
@@ -669,35 +373,39 @@ def walk_forward(output_file_name, config, old_configs_file_name, number_of_top_
                                total_predict[
                                day * data_frequency_per_day:(day + 1) * data_frequency_per_day]))
                 meanRMSE += abs(
-                    sqrt(metrics.mean_squared_error(total_test[day * data_frequency_per_day:(day + 1) * data_frequency_per_day],
-                                          total_predict[
-                                          day * data_frequency_per_day:(day + 1) * data_frequency_per_day])))
-                
+                    sqrt(metrics.mean_squared_error(
+                        total_test[day * data_frequency_per_day:(day + 1) * data_frequency_per_day],
+                        total_predict[
+                        day * data_frequency_per_day:(day + 1) * data_frequency_per_day])))
+
                 meanMSE += abs(
-                    metrics.mean_squared_error(total_test[day * data_frequency_per_day:(day + 1) * data_frequency_per_day],
-                                          total_predict[
-                                          day * data_frequency_per_day:(day + 1) * data_frequency_per_day]))
-                
+                    metrics.mean_squared_error(
+                        total_test[day * data_frequency_per_day:(day + 1) * data_frequency_per_day],
+                        total_predict[
+                        day * data_frequency_per_day:(day + 1) * data_frequency_per_day]))
+
                 meanMAE += abs(
-                    metrics.mean_absolute_error(total_test[day * data_frequency_per_day:(day + 1) * data_frequency_per_day],
-                                          total_predict[
-                                          day * data_frequency_per_day:(day + 1) * data_frequency_per_day]))
-                
+                    metrics.mean_absolute_error(
+                        total_test[day * data_frequency_per_day:(day + 1) * data_frequency_per_day],
+                        total_predict[
+                        day * data_frequency_per_day:(day + 1) * data_frequency_per_day]))
+
                 meanMAPE += abs(
-                    mean_absolute_percentage_error(total_test[day * data_frequency_per_day:(day + 1) * data_frequency_per_day],
-                                          total_predict[
-                                          day * data_frequency_per_day:(day + 1) * data_frequency_per_day]))
-                
+                    mean_absolute_percentage_error(
+                        total_test[day * data_frequency_per_day:(day + 1) * data_frequency_per_day],
+                        total_predict[
+                        day * data_frequency_per_day:(day + 1) * data_frequency_per_day]))
+
                 meanMPE += abs(
                     mean_percentage_error(total_test[day * data_frequency_per_day:(day + 1) * data_frequency_per_day],
                                           total_predict[
                                           day * data_frequency_per_day:(day + 1) * data_frequency_per_day]))
-                
+
                 meanR2S += abs(
                     metrics.r2_score(total_test[day * data_frequency_per_day:(day + 1) * data_frequency_per_day],
-                                          total_predict[
-                                          day * data_frequency_per_day:(day + 1) * data_frequency_per_day]))
-                
+                                     total_predict[
+                                     day * data_frequency_per_day:(day + 1) * data_frequency_per_day]))
+
             with open(PATH + "walk-forward-results/" + str(config) + '/{}.txt'.format(output_file_name), 'a+') as f:
                 print("-----------------{}-----------------".format(str(config)), file=f)
                 print("MSE", metrics.mean_squared_error(total_test, total_predict), file=f)
@@ -709,7 +417,7 @@ def walk_forward(output_file_name, config, old_configs_file_name, number_of_top_
                 print("Intra Day MPE, Inter day MAE", error_avg / days_to_test, file=f)
                 print("MeanError", meanError / days_to_test, file=f)
                 print("------------------", file=f)
-                
+
                 print("meanRMSE", meanRMSE / days_to_test, file=f)
                 print("meanMSE", meanMSE / days_to_test, file=f)
                 print("meanMAE", meanMAE / days_to_test, file=f)
@@ -732,18 +440,18 @@ def run_forward_all_models(output_file_name, config, old_configs_file_name, numb
     model_summaries_MAPE = []
     model_summaries_MAE = []
     model_summaries_intra_MPE = []
-    total_exectuion_time=timedelta()
+    total_exectuion_time = timedelta()
     data_frequency_per_day = 96  # 24 hours * 4 freq/hour
     try:
-            path = PATH + "walk-forward-results/" + "MODELSFORPLOT"
-            print(path)
-            os.mkdir(path)
+        path = PATH + "walk-forward-results/" + "MODELSFORPLOT"
+        print(path)
+        os.mkdir(path)
     except OSError:
-            print("ERROR Creation of the directory %s failed" % path)
-    
+        print("ERROR Creation of the directory %s failed" % path)
+
     for cfg in config:
         try:
-            start= datetime.now()
+            start = datetime.now()
             model_fit, total_test, total_predict, train = walk_forward(output_file_name=output_file_name,
                                                                        config=cfg,
                                                                        old_configs_file_name=old_configs_file_name,
@@ -788,34 +496,39 @@ def run_forward_all_models(output_file_name, config, old_configs_file_name, numb
                                                                     "walk-forward-results/" + output_file_name + "--INTRA Day MPE- INTER Day MAe-")
 
             fc_series = pd.Series(total_predict, index=total_test.index)
-            #lower_series = pd.Series(conf[:, 0], index=total_test.index)
-            #upper_series = pd.Series(conf[:, 1], index=total_test.index)
+            # lower_series = pd.Series(conf[:, 0], index=total_test.index)
+            # upper_series = pd.Series(conf[:, 1], index=total_test.index)
 
             # Plot
             fig = plt.figure(figsize=(12, 5), dpi=100)
             plt.plot(train, label='training')
             plt.plot(total_test, label='actual')
             plt.plot(fc_series, label='forecast')
-            #plt.fill_between(lower_series.index, lower_series, upper_series,
+            # plt.fill_between(lower_series.index, lower_series, upper_series,
             #                 color='k', alpha=.15)
             plt.title('Forecast vs Actuals')
             plt.legend(loc='upper left', fontsize=8)
-            plt.savefig(PATH + "walk-forward-results/" + str(cfg) + '/images/{}TRAINTEST.png'.format(output_file_name), format='png', dpi=1200)
-            #plt.show()
+            plt.savefig(PATH + "walk-forward-results/" + str(cfg) + '/images/{}TRAINTEST.png'.format(output_file_name),
+                        format='png', dpi=1200)
+            # plt.show()
             plt.close(fig)
             # updating old configs
             # for latter plot
-            train.to_csv(PATH + "walk-forward-results/" + "MODELSFORPLOT/"+"{}-{}_train.csv".format(output_file_name,str(cfg)))
-            total_test.to_csv(PATH + "walk-forward-results/" + "MODELSFORPLOT/"+"{}-{}_total_test.csv".format(output_file_name,str(cfg)))
-            fc_series.to_csv(PATH + "walk-forward-results/" + "MODELSFORPLOT/"+"{}-{}_fc_series.csv".format(output_file_name,str(cfg)))
+            train.to_csv(PATH + "walk-forward-results/" + "MODELSFORPLOT/" + "{}-{}_train.csv".format(output_file_name,
+                                                                                                      str(cfg)))
+            total_test.to_csv(
+                PATH + "walk-forward-results/" + "MODELSFORPLOT/" + "{}-{}_total_test.csv".format(output_file_name,
+                                                                                                  str(cfg)))
+            fc_series.to_csv(
+                PATH + "walk-forward-results/" + "MODELSFORPLOT/" + "{}-{}_fc_series.csv".format(output_file_name,
+                                                                                                 str(cfg)))
 
-
-            end=datetime.now()
+            end = datetime.now()
             # updating old configs
             updating_old_configs_file(old_configs_file_name, cfg)
-            #writing execution time for the model
-            writing_model_execution_time(old_configs_file_name, end-start)
-            total_exectuion_time += end-start
+            # writing execution time for the model
+            writing_model_execution_time(old_configs_file_name, end - start)
+            total_exectuion_time += end - start
             writing_total_execution_time(old_configs_file_name, total_exectuion_time)
         except:
             print("\n\n\n\nError in walking forward all models\n\n\n\n")
@@ -823,8 +536,9 @@ def run_forward_all_models(output_file_name, config, old_configs_file_name, numb
 
         print(output_file_name)
 
+
 def walk_forward_sarima(output_file_name, config, old_configs_file_name, number_of_top_models, target_period_days,
-                 days_to_test, start_date, dataset_name, exog_columns):
+                        days_to_test, start_date, dataset_name, exog_columns):
     with tf.device('/device:GPU:0'):
         total_test = pd.Series()
         total_predict = pd.Series()
@@ -855,9 +569,9 @@ def walk_forward_sarima(output_file_name, config, old_configs_file_name, number_
                 # print(train.head) print(test.head)
                 # print(train)
                 model_fit, predict = run_and_save_SARIMA_model(train, test, config,
-                                                                "walk-forward-results/" + str(
-                                                                    config) + '/' + output_file_name + str(
-                                                                    config) + "DAY" + str(walking_parameter))
+                                                               "walk-forward-results/" + str(
+                                                                   config) + '/' + output_file_name + str(
+                                                                   config) + "DAY" + str(walking_parameter))
                 print(config, walking_parameter)
                 total_test = total_test.append(test)
                 total_predict = total_predict.append(predict)
@@ -869,7 +583,7 @@ def walk_forward_sarima(output_file_name, config, old_configs_file_name, number_
             PLT.plot(total_test.index, total_test, total_test.index, total_predict, '-')
             PLT.savefig(PATH + "walk-forward-results/" + str(config) + '/images/{}.png'.format(output_file_name))
             PLT.close(fig)
-            
+
             # intra day MPE, MAE interday
             error_avg = 0
             meanError = 0
@@ -889,37 +603,41 @@ def walk_forward_sarima(output_file_name, config, old_configs_file_name, number_
                     mean_error(total_test[day * data_frequency_per_day:(day + 1) * data_frequency_per_day],
                                total_predict[
                                day * data_frequency_per_day:(day + 1) * data_frequency_per_day]))
-                
+
                 meanRMSE += abs(
-                    sqrt(metrics.mean_squared_error(total_test[day * data_frequency_per_day:(day + 1) * data_frequency_per_day],
-                                          total_predict[
-                                          day * data_frequency_per_day:(day + 1) * data_frequency_per_day])))
-                
+                    sqrt(metrics.mean_squared_error(
+                        total_test[day * data_frequency_per_day:(day + 1) * data_frequency_per_day],
+                        total_predict[
+                        day * data_frequency_per_day:(day + 1) * data_frequency_per_day])))
+
                 meanMSE += abs(
-                    metrics.mean_squared_error(total_test[day * data_frequency_per_day:(day + 1) * data_frequency_per_day],
-                                          total_predict[
-                                          day * data_frequency_per_day:(day + 1) * data_frequency_per_day]))
-                
+                    metrics.mean_squared_error(
+                        total_test[day * data_frequency_per_day:(day + 1) * data_frequency_per_day],
+                        total_predict[
+                        day * data_frequency_per_day:(day + 1) * data_frequency_per_day]))
+
                 meanMAE += abs(
-                    metrics.mean_absolute_error(total_test[day * data_frequency_per_day:(day + 1) * data_frequency_per_day],
-                                          total_predict[
-                                          day * data_frequency_per_day:(day + 1) * data_frequency_per_day]))
-                
+                    metrics.mean_absolute_error(
+                        total_test[day * data_frequency_per_day:(day + 1) * data_frequency_per_day],
+                        total_predict[
+                        day * data_frequency_per_day:(day + 1) * data_frequency_per_day]))
+
                 meanMAPE += abs(
-                    mean_absolute_percentage_error(total_test[day * data_frequency_per_day:(day + 1) * data_frequency_per_day],
-                                          total_predict[
-                                          day * data_frequency_per_day:(day + 1) * data_frequency_per_day]))
-                
+                    mean_absolute_percentage_error(
+                        total_test[day * data_frequency_per_day:(day + 1) * data_frequency_per_day],
+                        total_predict[
+                        day * data_frequency_per_day:(day + 1) * data_frequency_per_day]))
+
                 meanMPE += abs(
                     mean_percentage_error(total_test[day * data_frequency_per_day:(day + 1) * data_frequency_per_day],
                                           total_predict[
                                           day * data_frequency_per_day:(day + 1) * data_frequency_per_day]))
-                
+
                 meanR2S += abs(
                     metrics.r2_score(total_test[day * data_frequency_per_day:(day + 1) * data_frequency_per_day],
-                                          total_predict[
-                                          day * data_frequency_per_day:(day + 1) * data_frequency_per_day]))
-                
+                                     total_predict[
+                                     day * data_frequency_per_day:(day + 1) * data_frequency_per_day]))
+
             with open(PATH + "walk-forward-results/" + str(config) + '/{}.txt'.format(output_file_name), 'a+') as f:
                 print("-----------------{}-----------------".format(str(config)), file=f)
                 print("MSE", metrics.mean_squared_error(total_test, total_predict), file=f)
@@ -946,7 +664,7 @@ def walk_forward_sarima(output_file_name, config, old_configs_file_name, number_
 
 
 def run_forward_all_models_sarima(output_file_name, config, old_configs_file_name, number_of_top_models, days_to_test,
-                           target_period_days, start_date, dataset_name):
+                                  target_period_days, start_date, dataset_name):
     model_summaries_AIC = []
     model_summaries_MPE = []
     model_summaries_RMSE = []
@@ -954,19 +672,20 @@ def run_forward_all_models_sarima(output_file_name, config, old_configs_file_nam
     model_summaries_MAE = []
     model_summaries_intra_MPE = []
     data_frequency_per_day = 96  # 24 hours * 4 freq/hour
-    total_exectuion_time=timedelta()
+    total_exectuion_time = timedelta()
 
     for cfg in config:
         try:
-            start= datetime.now()
+            start = datetime.now()
             model_fit, total_test, total_predict, train = walk_forward_sarima(output_file_name=output_file_name,
-                                                                       config=cfg,
-                                                                       old_configs_file_name=old_configs_file_name,
-                                                                       number_of_top_models=number_of_top_models,
-                                                                       days_to_test=days_to_test,
-                                                                       target_period_days=target_period_days,
-                                                                       start_date=start_date, dataset_name=dataset_name,
-                                                                       exog_columns=exog_columns)
+                                                                              config=cfg,
+                                                                              old_configs_file_name=old_configs_file_name,
+                                                                              number_of_top_models=number_of_top_models,
+                                                                              days_to_test=days_to_test,
+                                                                              target_period_days=target_period_days,
+                                                                              start_date=start_date,
+                                                                              dataset_name=dataset_name,
+                                                                              exog_columns=exog_columns)
         except:
             print("following model was skiped:", str(cfg))
 
@@ -1006,43 +725,49 @@ def run_forward_all_models_sarima(output_file_name, config, old_configs_file_nam
 
             orig.append(total_test)
             fc_series = pd.Series(total_predict, index=total_test.index)
-            #lower_series = pd.Series(conf[:, 0], index=total_test.index)
-            #upper_series = pd.Series(conf[:, 1], index=total_test.index)
+            # lower_series = pd.Series(conf[:, 0], index=total_test.index)
+            # upper_series = pd.Series(conf[:, 1], index=total_test.index)
 
             # Plot
             fig = plt.figure(figsize=(12, 5), dpi=100)
             plt.plot(train, label='training')
             plt.plot(total_test, label='actual')
             plt.plot(fc_series, label='forecast')
-            #plt.fill_between(lower_series.index, lower_series, upper_series,
+            # plt.fill_between(lower_series.index, lower_series, upper_series,
             #                 color='k', alpha=.15)
             plt.title('Forecast vs Actuals')
             plt.legend(loc='upper left', fontsize=8)
-            plt.savefig(PATH + "walk-forward-results/" + str(cfg) + '/images/{}TRAINTEST.png'.format(output_file_name), format='png', dpi=1200)
-            #plt.show()
+            plt.savefig(PATH + "walk-forward-results/" + str(cfg) + '/images/{}TRAINTEST.png'.format(output_file_name),
+                        format='png', dpi=1200)
+            # plt.show()
             plt.close(fig)
             # updating old configs
-            train.to_csv(PATH + "walk-forward-results/" + "MODELSFORPLOT/"+"{}-{}_train.csv".format(output_file_name,str(cfg)))
-            total_test.to_csv(PATH + "walk-forward-results/" + "MODELSFORPLOT/"+"{}-{}_total_test.csv".format(output_file_name,str(cfg)))
-            fc_series.to_csv(PATH + "walk-forward-results/" + "MODELSFORPLOT/"+"{}-{}_fc_series.csv".format(output_file_name,str(cfg)))
+            train.to_csv(PATH + "walk-forward-results/" + "MODELSFORPLOT/" + "{}-{}_train.csv".format(output_file_name,
+                                                                                                      str(cfg)))
+            total_test.to_csv(
+                PATH + "walk-forward-results/" + "MODELSFORPLOT/" + "{}-{}_total_test.csv".format(output_file_name,
+                                                                                                  str(cfg)))
+            fc_series.to_csv(
+                PATH + "walk-forward-results/" + "MODELSFORPLOT/" + "{}-{}_fc_series.csv".format(output_file_name,
+                                                                                                 str(cfg)))
 
-            end=datetime.now()
+            end = datetime.now()
             # updating old configs
             updating_old_configs_file(old_configs_file_name, cfg)
-            #writing execution time for the model
-            writing_model_execution_time(old_configs_file_name, end-start)
-            total_exectuion_time += end-start
+            # writing execution time for the model
+            writing_model_execution_time(old_configs_file_name, end - start)
+            total_exectuion_time += end - start
             writing_total_execution_time(old_configs_file_name, total_exectuion_time)
         except:
             print("\n\n\n\nError in walking forward all models\n\n\n\n")
             print("Unexpected error:", sys.exc_info()[0])
-        
+
         print(output_file_name)
 
 
 ### FANCY PLOTS FOR THE END ####
 def plot_forecasts(data_path, sarima_name, sarimax_name, arimax_name, output_file_name):
-    font_size = 14 # @param {type:"integer"}
+    font_size = 14  # @param {type:"integer"}
     # train_sarima = pd.read_csv(data_path + "{}_train.csv".format(sarima_name), index_col=0)
     # train_sarima.index = pd.date_range(start=train_sarima.index[0], periods=len(train_sarima), freq='15Min')
 
@@ -1078,7 +803,7 @@ def plot_forecasts(data_path, sarima_name, sarimax_name, arimax_name, output_fil
     plt.plot(fc_series_sarimax, label='Forecast-SARIMAX')
     plt.plot(fc_series_sarima, label='Forecast-SARIMA')
     plt.plot(fc_series_arimax, label='Forecast-ARIMAX')
-    plt.title('Forecast vs Actuals',fontsize=font_size)
+    plt.title('Forecast vs Actuals', fontsize=font_size)
     plt.legend(loc='upper left')
     plt.xlabel('Time [YYYY-MM-DD]', fontsize=font_size)
     plt.ylabel('Percentage of the Renewables [%]', fontsize=font_size)
@@ -1100,6 +825,7 @@ def plot_forecasts(data_path, sarima_name, sarimax_name, arimax_name, output_fil
     plt.show()
     plt.close(fig)
 
+
 """##April Wind
 
 SARIMAX
@@ -1107,34 +833,34 @@ SARIMAX
 
 ################################  CONFIG  ############################################
 # splitting train and test
-exog_columns = ['windspeed','GHI']
+exog_columns = ['windspeed', 'GHI']
 target_period_days = 35  # @param {type:"integer"}
 number_of_top_models = 20  # @param {type:"integer"}
 start_test_date = "2019-04-01 00:00:00"  # @param {type:"string"}
-days_to_test =   30# @param {type:"integer"}
-dataset_name = 'Ultimate-12cities_spline_weather_entsoe_radiation_data' # @param ['weather_entsoe_radiation_data', 'Ultimate-12cities_spline_weather_entsoe_radiation_data','Ultimate-12cities_linear_weather_entsoe_radiation_data']
+days_to_test = 30  # @param {type:"integer"}
+dataset_name = 'Ultimate-12cities_spline_weather_entsoe_radiation_data'  # @param ['weather_entsoe_radiation_data', 'Ultimate-12cities_spline_weather_entsoe_radiation_data','Ultimate-12cities_linear_weather_entsoe_radiation_data']
 old_configs_file_name = "used-configs-{}Days".format(str(target_period_days))
 t_param_string = "n"  # @param ['n', 'c', 't', 'ct']
 output_file_name = "THE-BEST-SARIMAX-April-windOnly-DEDICATED"  # @param {type:"string"}
 
 output_file_name = t_param_string + "-" + output_file_name
 old_configs_file_name = output_file_name + old_configs_file_name
-start_date= str(datetime.strptime(start_test_date,'%Y-%m-%d %H:%M:%S') - timedelta(days=target_period_days))
+start_date = str(datetime.strptime(start_test_date, '%Y-%m-%d %H:%M:%S') - timedelta(days=target_period_days))
 ######################################################################################
 
 
 cfg_list = [
-#[(4, 1, 3), (2, 0, 2, 4), 'n'] #4
-[(2, 1, 3), (2, 0, 2, 4), 'n'],
-[(3, 1, 3), (2, 0, 2, 4), 'n'],
-[(1, 1, 4), (2, 0, 2, 4), 'n'],
-[(4, 1, 0), (2, 0, 2, 4), 'n'],
-[(1, 1, 3), (2, 0, 2, 4), 'n'],
-[(4, 1, 1), (2, 0, 2, 4), 'n'],
-[(2, 1, 1), (2, 0, 2, 4), 'n'],
-[(3, 1, 0), (2, 0, 2, 4), 'n'],
-[(2, 1, 2), (2, 0, 2, 4), 'n'],
-[(1, 1, 2), (2, 0, 2, 4), 'n']
+    # [(4, 1, 3), (2, 0, 2, 4), 'n'] #4
+    [(2, 1, 3), (2, 0, 2, 4), 'n'],
+    [(3, 1, 3), (2, 0, 2, 4), 'n'],
+    [(1, 1, 4), (2, 0, 2, 4), 'n'],
+    [(4, 1, 0), (2, 0, 2, 4), 'n'],
+    [(1, 1, 3), (2, 0, 2, 4), 'n'],
+    [(4, 1, 1), (2, 0, 2, 4), 'n'],
+    [(2, 1, 1), (2, 0, 2, 4), 'n'],
+    [(3, 1, 0), (2, 0, 2, 4), 'n'],
+    [(2, 1, 2), (2, 0, 2, 4), 'n'],
+    [(1, 1, 2), (2, 0, 2, 4), 'n']
 ]
 try:
     path = PATH + "walk-forward-results"
@@ -1161,8 +887,7 @@ cfg_list = [ast.literal_eval(line) for line in cfg_list]
 # cfg_list.sort(reverse=True)
 current_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
 
-print("Old configs size:",len(old_configs),"\nNew config size:", len(cfg_list))
-
+print("Old configs size:", len(old_configs), "\nNew config size:", len(cfg_list))
 
 run_forward_all_models(output_file_name=output_file_name + current_time, config=cfg_list,
                        old_configs_file_name="walk-forward-results/" + old_configs_file_name,
@@ -1179,20 +904,20 @@ exog_columns = ['windspeed', 'GHI']
 target_period_days = 35  # @param {type:"integer"}
 number_of_top_models = 20  # @param {type:"integer"}
 start_test_date = "2019-04-01 00:00:00"  # @param {type:"string"}
-days_to_test =   30# @param {type:"integer"}
-dataset_name = 'Ultimate-12cities_spline_weather_entsoe_radiation_data' # @param ['weather_entsoe_radiation_data', 'Ultimate-12cities_spline_weather_entsoe_radiation_data','Ultimate-12cities_linear_weather_entsoe_radiation_data']
+days_to_test = 30  # @param {type:"integer"}
+dataset_name = 'Ultimate-12cities_spline_weather_entsoe_radiation_data'  # @param ['weather_entsoe_radiation_data', 'Ultimate-12cities_spline_weather_entsoe_radiation_data','Ultimate-12cities_linear_weather_entsoe_radiation_data']
 old_configs_file_name = "used-configs-{}Days".format(str(target_period_days))
 t_param_string = "n"  # @param ['n', 'c', 't', 'ct']
 output_file_name = "THE-BEST-SARIMA-April"  # @param {type:"string"}
 
 output_file_name = t_param_string + "-" + output_file_name
 old_configs_file_name = output_file_name + old_configs_file_name
-start_date= str(datetime.strptime(start_test_date,'%Y-%m-%d %H:%M:%S') - timedelta(days=target_period_days))
+start_date = str(datetime.strptime(start_test_date, '%Y-%m-%d %H:%M:%S') - timedelta(days=target_period_days))
 ######################################################################################
 
 
 cfg_list = [
-[(4, 1, 4), (2, 0, 2, 4), 'n'] #9
+    [(4, 1, 4), (2, 0, 2, 4), 'n']  # 9
 
 ]
 try:
@@ -1220,38 +945,39 @@ cfg_list = [ast.literal_eval(line) for line in cfg_list]
 # cfg_list.sort(reverse=True)
 current_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
 
-print("Old configs size:",len(old_configs),"\nNew config size:", len(cfg_list))
-
+print("Old configs size:", len(old_configs), "\nNew config size:", len(cfg_list))
 
 run_forward_all_models_sarima(output_file_name=output_file_name + current_time, config=cfg_list,
-                       old_configs_file_name="walk-forward-results/" + old_configs_file_name,
-                       number_of_top_models=number_of_top_models, days_to_test=days_to_test,
-                       target_period_days=target_period_days, start_date=start_date, dataset_name=dataset_name)
+                              old_configs_file_name="walk-forward-results/" + old_configs_file_name,
+                              number_of_top_models=number_of_top_models, days_to_test=days_to_test,
+                              target_period_days=target_period_days, start_date=start_date, dataset_name=dataset_name)
 
 # cfg_list
 
-"""ARIMAX"""
+"""ARIMAX
+
+"""
 
 ################################  CONFIG  ############################################
 # splitting train and test
-exog_columns = ['windspeed','GHI']
+exog_columns = ['windspeed', 'GHI']
 target_period_days = 35  # @param {type:"integer"}
 number_of_top_models = 20  # @param {type:"integer"}
 start_test_date = "2019-04-01 00:00:00"  # @param {type:"string"}
-days_to_test =   30# @param {type:"integer"}
-dataset_name = 'Ultimate-12cities_spline_weather_entsoe_radiation_data' # @param ['weather_entsoe_radiation_data', 'Ultimate-12cities_spline_weather_entsoe_radiation_data','Ultimate-12cities_linear_weather_entsoe_radiation_data']
+days_to_test = 30  # @param {type:"integer"}
+dataset_name = 'Ultimate-12cities_spline_weather_entsoe_radiation_data'  # @param ['weather_entsoe_radiation_data', 'Ultimate-12cities_spline_weather_entsoe_radiation_data','Ultimate-12cities_linear_weather_entsoe_radiation_data']
 old_configs_file_name = "used-configs-{}Days".format(str(target_period_days))
 t_param_string = "n"  # @param ['n', 'c', 't', 'ct']
 output_file_name = "THE-BEST-ARIMAX-April-windOnlyP"  # @param {type:"string"}
 
 output_file_name = t_param_string + "-" + output_file_name
 old_configs_file_name = output_file_name + old_configs_file_name
-start_date= str(datetime.strptime(start_test_date,'%Y-%m-%d %H:%M:%S') - timedelta(days=target_period_days))
+start_date = str(datetime.strptime(start_test_date, '%Y-%m-%d %H:%M:%S') - timedelta(days=target_period_days))
 ######################################################################################
 
 
 cfg_list = [
-[(4, 1, 4), (0, 0, 0, 0), 'n'] #2
+    [(4, 1, 4), (0, 0, 0, 0), 'n']  # 2
 ]
 try:
     path = PATH + "walk-forward-results"
@@ -1278,8 +1004,7 @@ cfg_list = [ast.literal_eval(line) for line in cfg_list]
 # cfg_list.sort(reverse=True)
 current_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
 
-print("Old configs size:",len(old_configs),"\nNew config size:", len(cfg_list))
-
+print("Old configs size:", len(old_configs), "\nNew config size:", len(cfg_list))
 
 run_forward_all_models(output_file_name=output_file_name + current_time, config=cfg_list,
                        old_configs_file_name="walk-forward-results/" + old_configs_file_name,
@@ -1288,10 +1013,10 @@ run_forward_all_models(output_file_name=output_file_name + current_time, config=
 
 # cfg_list
 
-sarima_name="n-THE-BEST-ARIMAX-April-windOnly07-11-2020 13:07:35"# @param {type:"string"}
-sarimax_name="n-THE-BEST-SARIMAX-April-windOnly07-11-2020 12:42:01"# @param {type:"string"}
-arimax_name="n-THE-BEST-ARIMAX-April-windOnly07-11-2020 13:07:35"# @param {type:"string"}
-output_file_name = "April-BEST-PLOT"# @param {type:"string"}
+sarima_name = "n-THE-BEST-ARIMAX-April-windOnly07-11-2020 13:07:35"  # @param {type:"string"}
+sarimax_name = "n-THE-BEST-SARIMAX-April-windOnly07-11-2020 12:42:01"  # @param {type:"string"}
+arimax_name = "n-THE-BEST-ARIMAX-April-windOnly07-11-2020 13:07:35"  # @param {type:"string"}
+output_file_name = "April-BEST-PLOT"  # @param {type:"string"}
 
-
-plot_forecasts(data_path=data_path, sarima_name=sarima_name, sarimax_name=sarimax_name, arimax_name=arimax_name, output_file_name=output_file_name)
+plot_forecasts(data_path=data_path, sarima_name=sarima_name, sarimax_name=sarimax_name, arimax_name=arimax_name,
+               output_file_name=output_file_name)
