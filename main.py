@@ -1,7 +1,6 @@
-from FileManager import connect_drive
-from GeneralDataHandler import combine_generation_and_exogenous_data
+from RenewablesEnergyService.GeneralDataHandler import combine_generation_and_exogenous_data
 from datetime import datetime as date_time, timedelta
-from GeneralForecastHandler import run_and_save_S_ARIMAX_model,run_and_save_SARIMA_model
+from RenewablesEnergyService.GeneralForecastHandler import run_and_save_S_ARIMAX_model,run_and_save_SARIMA_model
 import pandas as pd
 
 start = (date_time.today() - timedelta(days=35)).strftime('%Y-%m-%d')

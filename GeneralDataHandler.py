@@ -1,8 +1,8 @@
 import pandas as pd
-from RadiationDataController import bulk_get_radiation_data
-from WeatherDataController import bulk_get_weather_data
+from RenewablesEnergyService.RadiationDataController import bulk_get_radiation_data
+from RenewablesEnergyService.WeatherDataController import bulk_get_weather_data
 
-from GenerationDataController import calculate_percentage_and_combine_data
+from RenewablesEnergyService.GenerationDataController import calculate_percentage_and_combine_data
 
 
 def merge_datasets_by_taking_average(df, target_columns):

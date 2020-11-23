@@ -1,7 +1,5 @@
-import json
 import requests
 import pandas as pd
-from datetime import datetime as dateT, timedelta
 
 
 def get_request_soda(label="", latitude=44.083, longitude=5.059, altitude=-999, start='2017-01-01', end='2017-01-02',

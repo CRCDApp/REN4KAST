@@ -1,9 +1,7 @@
 """#GETTING ENTSOE REAL TIME DATA"""
 
-from datetime import datetime, timedelta
 from entsoe import EntsoePandasClient
 import pandas as pd
-from GeneralDataHandler import assert_on_number_of_rows
 
 
 def get_entsoe_data(start, end, expected_length):
