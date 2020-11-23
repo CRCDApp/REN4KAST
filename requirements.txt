@@ -1,1 +1,4 @@
 entsoe-py
+tensorflow
+multiprocessing
+statsmodels

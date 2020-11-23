@@ -6,12 +6,12 @@ import pandas as pd
 from GeneralDataHandler import assert_on_number_of_rows
 
 
-def get_entsoe_data(expected_length):
+def get_entsoe_data(start, end, expected_length):
     client = EntsoePandasClient("94aa148a-330b-4eee-ba0c-8a5eb0b17825")
-    #start = pd.Timestamp(datetime.strptime("2020-07-01", '%Y-%m-%d'), tz='Etc/GMT')
-    #end = pd.Timestamp(datetime.strptime("2020-07-11", '%Y-%m-%d'), tz='Etc/GMT')
-    start = pd.Timestamp((datetime.today() - timedelta(days=35)).strftime('%Y-%m-%d'), tz='Etc/GMT')
-    end = pd.Timestamp((datetime.today() + timedelta(days=1)).strftime('%Y-%m-%d'), tz='Etc/GMT')
+    # start = pd.Timestamp(datetime.strptime("2020-07-01", '%Y-%m-%d'), tz='Etc/GMT')
+    # end = pd.Timestamp(datetime.strptime("2020-07-11", '%Y-%m-%d'), tz='Etc/GMT')
+    # start = pd.Timestamp((datetime.today() - timedelta(days=35)).strftime('%Y-%m-%d'), tz='Etc/GMT')
+    # end = pd.Timestamp((datetime.today() + timedelta(days=1)).strftime('%Y-%m-%d'), tz='Etc/GMT')
     country_code = 'DE'  # Germany
 
     # methods that return Pandas Series
@@ -24,7 +24,7 @@ def get_entsoe_data(expected_length):
 
     # converting to GMT
     entsoe_data.index = entsoe_data.index.tz_convert('Etc/GMT')
-    #entsoe_data.to_csv('/content/drive/My Drive/Colab Notebooks/Renewables/ENTSOE-DATA/GMT-ENTSOE-{}-{}-{}.csv'.format(country_code,start, end),sep=',', encoding='utf-8')
+    # entsoe_data.to_csv('/content/drive/My Drive/Colab Notebooks/Renewables/ENTSOE-DATA/GMT-ENTSOE-{}-{}-{}.csv'.format(country_code,start, end),sep=',', encoding='utf-8')
     """Handling missing and null values for last few datapoints (today)"""
 
     # https://towardsdatascience.com/data-cleaning-with-python-and-pandas-detecting-missing-values-3e9c6ebcf78b
@@ -39,11 +39,14 @@ def get_entsoe_data(expected_length):
     return entsoe_data
 
 
-def calculate_percentage_and_combine_data(exogenouse_params):
-    entsoe_data = get_entsoe_data(len(exogenouse_params))
-    assert_on_number_of_rows([exogenouse_params, entsoe_data])
-    entsoe_data.index = exogenouse_params.index
+def calculate_percentage_and_combine_data(start, end, expected_length):
+    entsoe_data = get_entsoe_data(start, end, expected_length)
+    assert expected_length == len(entsoe_data), "Oh no! Number of rows did NOT match! {} vs. {}".format(expected_length,
+                                                                                                        len(
+                                                                                                            entsoe_data))
 
+    entsoe_data.index = pd.date_range(start="{} 00:00:00".format(start), periods=len(entsoe_data), freq='15Min')
+    entsoe_data.index.name = 'time'
     """trying to remove null values but since it has 3 hours delay, error happens cause few last rows are null and it cannot handle it.
 
     For now this step could be ignored
@@ -96,9 +99,7 @@ def calculate_percentage_and_combine_data(exogenouse_params):
         # / bar tedad *100
     renewablesPercentage
 
-    assert_on_number_of_rows([renewablesPercentage, exogenouse_params])
-    renewablesPercentage.index = exogenouse_params.index
-
-    return pd.concat([renewablesPercentage, exogenouse_params], axis=1, sort=False)
+    renewablesPercentage.index = entsoe_data.index
+    return renewablesPercentage
 
     # finalres.to_csv( '/content/drive/My Drive/Colab Notebooks/Renewables/ENTSOE-DATA/ENTSOE-ALL-RENEWABLES-PERCENTAGE-NOT-ORIGINAL-DE-{}-{}.csv'.format(start, end), sep=',', encoding='utf-8')

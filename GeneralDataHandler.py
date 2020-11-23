@@ -1,7 +1,7 @@
 import pandas as pd
 from RadiationDataController import bulk_get_radiation_data
 from WeatherDataController import bulk_get_weather_data
-from datetime import datetime as date_time, timedelta
+
 from GenerationDataController import calculate_percentage_and_combine_data
 
 
@@ -28,7 +28,7 @@ def assert_on_number_of_rows(df):
         #  raise Exception("Sorry, number of rows in between different cities do not match.")
 
 
-def get_and_clean_historical_data():
+def get_and_clean_historical_data(start, end, timezone):
     columns = ["time", "time_local", "temperature", "dewpoint", "humidity", "precipitation", "precipitation_3",
                "precipitation_6", "snowdepth", "windspeed", "peakgust", "winddirection", "pressure", "condition"]
 
@@ -50,9 +50,7 @@ def get_and_clean_historical_data():
     # station_Ids = ["10513"]
     # start="2017-12-30"
     # end="2020-07-11"
-    start = (date_time.today() - timedelta(days=35)).strftime('%Y-%m-%d')
-    end = (date_time.today() - timedelta(days=1)).strftime('%Y-%m-%d')
-    timezone = "Etc/GMT"  # Europe/Berlin OR Etc/GMT
+
 
     windspeed_data = bulk_get_weather_data(cities, station_ids, start, end, timezone)
     ghi_data = bulk_get_radiation_data(cities, start, end, latitude, longitude, altitude)
@@ -105,7 +103,7 @@ def get_today_data_request(label, latitude, longitude, altitude, start, end, col
 
     # m/s to km/h ~ 3.6
     df['Wind speed'] = [element * 3.6 for element in df['Wind speed']]
-    #df.copy().to_csv('/content/drive/My Drive/Colab Notebooks/Renewables/RadiationData/{}.csv'.format(label),columns=columns)
+    # df.copy().to_csv('/content/drive/My Drive/Colab Notebooks/Renewables/RadiationData/{}.csv'.format(label),columns=columns)
     return df
 
 
@@ -133,5 +131,7 @@ def get_and_clean_real_time_data(cities, longitude, latitude):
     return average_today
 
 
-def combine_generation_and_exogenous_data():
-    return calculate_percentage_and_combine_data(get_and_clean_historical_data())
+def combine_generation_and_exogenous_data(start, end, end_entsoe, timezone):
+    return get_and_clean_historical_data(start, end, timezone), calculate_percentage_and_combine_data(start, end_entsoe,
+                                                                                                      ((
+                                                                                                           end - start).days) * 96)
