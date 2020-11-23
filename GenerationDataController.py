@@ -36,6 +36,8 @@ def get_entsoe_data(start, end, expected_length):
         entsoe_data = entsoe_data.append(last_dp, ignore_index=False)
 
     entsoe_data = entsoe_data.ffill()
+    # changing type from non-type to float. because later we want to calculate the average among all cities
+    entsoe_data = entsoe_data.apply(pd.to_numeric)
     return entsoe_data
 
 
@@ -45,7 +47,7 @@ def calculate_percentage_and_combine_data(start, end, expected_length):
                                                                                                         len(
                                                                                                             entsoe_data))
 
-    entsoe_data.index = pd.date_range(start="{} 00:00:00".format(start), periods=len(entsoe_data), freq='15Min')
+    entsoe_data.index = pd.date_range(start="{} 00:00:00".format(start.strftime('%Y-%m-%d')), periods=len(entsoe_data), freq='15Min')
     entsoe_data.index.name = 'time'
     """trying to remove null values but since it has 3 hours delay, error happens cause few last rows are null and it cannot handle it.
 
@@ -97,7 +99,6 @@ def calculate_percentage_and_combine_data(start, end, expected_length):
         prct = prct * 100
         renewablesPercentage.loc[index] = [round(prct, 2)]
         # / bar tedad *100
-    renewablesPercentage
 
     renewablesPercentage.index = entsoe_data.index
     return renewablesPercentage

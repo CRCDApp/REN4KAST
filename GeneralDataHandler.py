@@ -66,6 +66,11 @@ def get_and_clean_historical_data(start, end, timezone):
     last_datapoint = filledData_spline.loc[[filledData_spline.index[-1]]]
     for i in range(3):
         filledData_spline = filledData_spline.append(last_datapoint, ignore_index=False)
+    # for missing ghi (normally 1 day)
+    # could be removed after testing
+    #last_dp = average_ghi.loc[[average_ghi.index[-1]]]
+    #for i in range(len(filledData_spline) - len(average_ghi)):
+    #    average_ghi = average_ghi.append(last_dp, ignore_index=False)
 
     assert_on_number_of_rows([average_ghi, filledData_spline])
     filledData_spline.index = average_ghi.index
@@ -132,6 +137,11 @@ def get_and_clean_real_time_data(cities, longitude, latitude):
 
 
 def combine_generation_and_exogenous_data(start, end, end_entsoe, timezone):
-    return get_and_clean_historical_data(start, end, timezone), calculate_percentage_and_combine_data(start, end_entsoe,
-                                                                                                      ((
-                                                                                                           end - start).days) * 96)
+    return get_and_clean_historical_data(start, end, timezone), calculate_percentage_and_combine_data(
+        pd.Timestamp(start, tz='Etc/GMT'), pd.Timestamp(end_entsoe, tz='Etc/GMT'),
+        ((
+             datetime.strptime(
+                 end_entsoe,
+                 '%Y-%m-%d') - datetime.strptime(
+                 start,
+                 '%Y-%m-%d')).days) * 96)

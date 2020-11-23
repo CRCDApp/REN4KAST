@@ -1,8 +1,8 @@
 from FileManager import connect_drive
 from GeneralDataHandler import combine_generation_and_exogenous_data
 from datetime import datetime as date_time, timedelta
-
-connect_drive()
+from GeneralForecastHandler import run_and_save_S_ARIMAX_model,run_and_save_SARIMA_model
+import pandas as pd
 
 start = (date_time.today() - timedelta(days=35)).strftime('%Y-%m-%d')
 end = (date_time.today() - timedelta(days=1)).strftime('%Y-%m-%d')
@@ -13,4 +13,9 @@ exog_params, renewables_percentage = combine_generation_and_exogenous_data(start
 
 data_frequency_per_day = 96
 # sample call
-# forecasts = run_and_save_S_ARIMAX_model(renewables_percentage, data_frequency_per_day, [param[:-data_frequency_per_day] for param in exog_params], [param[-data_frequency_per_day:] for param in exog_params], config=[(4, 1, 4), (2, 0, 2, 4), 'n'])
+renewables_percentage.index = pd.date_range(start="{} 00:00:00".format(start), periods=len(renewables_percentage), freq='15Min')
+exog_params.index = pd.date_range(start="{} 00:00:00".format(start), periods=len(exog_params), freq='15Min')
+
+forecasts = run_and_save_S_ARIMAX_model(renewables_percentage, data_frequency_per_day, exog_params[:-data_frequency_per_day], exog_params[-data_frequency_per_day:], config=[(4, 1, 4), (2, 0, 2, 4), 'n'])
+
+forecasts = run_and_save_SARIMA_model(renewables_percentage, data_frequency_per_day, config=[(4, 1, 4), (2, 0, 2, 4), 'n'])
