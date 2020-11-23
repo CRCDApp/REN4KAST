@@ -68,9 +68,9 @@ def get_and_clean_historical_data(start, end, timezone):
         filledData_spline = filledData_spline.append(last_datapoint, ignore_index=False)
     # for missing ghi (normally 1 day)
     # could be removed after testing
-    #last_dp = average_ghi.loc[[average_ghi.index[-1]]]
-    #for i in range(len(filledData_spline) - len(average_ghi)):
-    #    average_ghi = average_ghi.append(last_dp, ignore_index=False)
+    last_dp = average_ghi.loc[[average_ghi.index[-1]]]
+    for i in range(len(filledData_spline) - len(average_ghi)):
+        average_ghi = average_ghi.append(last_dp, ignore_index=False)
 
     assert_on_number_of_rows([average_ghi, filledData_spline])
     filledData_spline.index = average_ghi.index
