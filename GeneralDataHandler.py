@@ -135,13 +135,3 @@ def get_and_clean_real_time_data(cities, longitude, latitude):
     average_today.columns = ["windspeed", "GHI"]
     return average_today
 
-
-def combine_generation_and_exogenous_data(start, end, end_entsoe, timezone):
-    return get_and_clean_historical_data(start, end, timezone), calculate_percentage_and_combine_data(
-        pd.Timestamp(start, tz='Etc/GMT'), pd.Timestamp(end_entsoe, tz='Etc/GMT'),
-        ((
-             datetime.strptime(
-                 end_entsoe,
-                 '%Y-%m-%d') - datetime.strptime(
-                 start,
-                 '%Y-%m-%d')).days) * 96)
