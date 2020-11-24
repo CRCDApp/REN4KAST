@@ -1,12 +1,11 @@
 from datetime import datetime, timedelta
 from GeneralForecastHandler import run_and_save_S_ARIMAX_model, run_and_save_SARIMA_model
-
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 import pandas as pd
-
-from GenerationDataController import calculate_percentage_and_combine_data
+from GenerationDataController import calculate_renewables_percentage
 from GeneralDataHandler import get_and_clean_historical_data
 
+# Defining the selected model params and method for each month.
 monthly_config = [
     [[(2, 0, 2), (2, 1, 1, 4), 'n'], "SARIMA"],  # January
     [[(2, 0, 4), (0, 0, 0, 0), 'n'], "ARIMAX"],  # February
@@ -23,7 +22,8 @@ monthly_config = [
 ]
 
 
-def run_and_save_S_ARIMAX_model(train, test_length, exog_train, exog_test, config=[(4, 1, 4), (2, 0, 2, 4), 'n']):
+# training and getting the forecasts for SARIMAX and ARIMAX models
+def run_and_save_S_ARIMAX_model(train, test_length, exog_train, exog_test, config):
     order, sorder, trend = config
     model = SARIMAX(train, order=order, seasonal_order=sorder, trend=trend, exog=exog_train)
     model_fit = model.fit()
@@ -31,7 +31,8 @@ def run_and_save_S_ARIMAX_model(train, test_length, exog_train, exog_test, confi
     return predict
 
 
-def run_and_save_SARIMA_model(train, test_length, config=[(4, 1, 4), (2, 0, 2, 4), 'n']):
+# training and getting the forecasts for SARIMA models
+def run_and_save_SARIMA_model(train, test_length, config):
     order, sorder, trend = config
     model = SARIMAX(train, order=order, seasonal_order=sorder, trend=trend)
     model_fit = model.fit()
@@ -39,13 +40,15 @@ def run_and_save_SARIMA_model(train, test_length, config=[(4, 1, 4), (2, 0, 2, 4
     return predict
 
 
-def model_picker():
+# Auto selecting the best model for current month, gathering data and returning the model forecasts.
+def get_forecasts_for_today():
+    data_frequency_per_day = 96
     start = (datetime.today() - timedelta(days=35)).strftime('%Y-%m-%d')
     end = (datetime.today() - timedelta(days=1)).strftime('%Y-%m-%d')
     end_entsoe = (datetime.today() + timedelta(days=1)).strftime('%Y-%m-%d')
     timezone = "Etc/GMT"  # Europe/Berlin OR Etc/GMT
-
-    renewables_percentage = calculate_percentage_and_combine_data(
+    # Getting renewables generation percentage from 35 days ago until the end of today
+    renewables_percentage = calculate_renewables_percentage(
         pd.Timestamp(start, tz='Etc/GMT'), pd.Timestamp(end_entsoe, tz='Etc/GMT'),
         ((
              datetime.strptime(
@@ -54,22 +57,23 @@ def model_picker():
                  start,
                  '%Y-%m-%d')).days) * 96)
 
+    # updating the type to float64
     renewables_percentage = renewables_percentage.apply(pd.to_numeric)
 
-    data_frequency_per_day = 96
-    # sample call
+    # updating the index
     renewables_percentage.index = pd.date_range(start="{} 00:00:00".format(start), periods=len(renewables_percentage),
                                                 freq='15Min')
 
     config, model = monthly_config[renewables_percentage.index[-1].month - 1]
     if model == "SARIMA":
-        print("sarima", config)
         return run_and_save_SARIMA_model(renewables_percentage, data_frequency_per_day, config)
     else:  # SARIMAX or ARIMAX
+        # Getting exogenous params (GHI, Wind speed) for ARIMAX and SARIMAX
         exog_params = get_and_clean_historical_data(start, end, timezone)
+        # Updating the index and chaging type to float64
         exog_params.index = pd.date_range(start="{} 00:00:00".format(start), periods=len(exog_params), freq='15Min')
-        print("(S)arimax", config)
         exog_params = exog_params.apply(pd.to_numeric)
+        # training the model and returning the forecasts
         return run_and_save_S_ARIMAX_model(renewables_percentage, data_frequency_per_day,
                                            exog_params[:-data_frequency_per_day], exog_params[-data_frequency_per_day:],
                                            config)

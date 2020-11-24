@@ -1,8 +1,19 @@
-install files in requirements first
+First install the requirements using the following command:
+pip install -r requirements.txt
 
- pip install -r requirements.txt 
- 
- 
+## How to use:
+* To flask server:
+from main import run_server
+run_server()
+
+* Just getting the forecasts:
+import GeneralForecastHandler
+from datetime import datetime,timedelta
+
+forecast = GeneralForecastHandler.get_forecasts_for_today()
+forecast.to_csv("/content/drive/My Drive/day-ahead-forecasts/Forecast_{}_AT-{}.csv".format((datetime.today() + timedelta(days=1)).strftime('%Y-%m-%d'),datetime.today().strftime("%Y-%m-%d %H:%M:%S")))
+
+
 ## Google Colab:
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1kDBQs4LzLiDY4TgQ2f_j2Vn7sGQZo5gi#scrollTo=6j6oKQdiNFnK)
 

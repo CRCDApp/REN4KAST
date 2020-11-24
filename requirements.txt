@@ -1,4 +1,9 @@
 entsoe-py
+flask-ngrok
 tensorflow
 multiprocessing
 statsmodels
+pandas
+requests
+statsmodels
+flask
