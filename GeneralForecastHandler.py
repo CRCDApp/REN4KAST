@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-from GeneralForecastHandler import run_and_save_S_ARIMAX_model, run_and_save_SARIMA_model
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 import pandas as pd
 from GenerationDataController import calculate_renewables_percentage
