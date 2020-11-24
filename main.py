@@ -1,5 +1,4 @@
 from GeneralForecastHandler import get_forecasts_for_today
-import pandas as pd
 from flask_ngrok import run_with_ngrok
 from flask import Flask, make_response
 
@@ -11,7 +10,7 @@ run_with_ngrok(app)  # starts ngrok when the app is run
 @app.route("/")
 def home():
     forecast = get_forecasts_for_today()
-    resp = make_response(df.to_csv(columns=forecast.columns))
+    resp = make_response(forecast.to_csv(columns=forecast.columns))
     resp.headers["Content-Disposition"] = "attachment; filename=export.csv"
     resp.headers["Content-Type"] = "text/csv"
     return resp
