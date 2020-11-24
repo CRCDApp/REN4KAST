@@ -11,9 +11,7 @@ run_with_ngrok(app)  # starts ngrok when the app is run
 @app.route("/")
 def home():
     forecast = get_forecasts_for_today()
-    df = pd.DataFrame(forecast, columns=['forecast'])
-    df.index.name = "time"
-    resp = make_response(df.to_csv(columns=df.columns))
+    resp = make_response(df.to_csv(columns=forecast.columns))
     resp.headers["Content-Disposition"] = "attachment; filename=export.csv"
     resp.headers["Content-Type"] = "text/csv"
     return resp
