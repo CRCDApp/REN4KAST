@@ -27,6 +27,8 @@ def run_and_save_S_ARIMAX_model(train, test_length, exog_train, exog_test, confi
     model = SARIMAX(train, order=order, seasonal_order=sorder, trend=trend, exog=exog_train)
     model_fit = model.fit()
     predict = model_fit.forecast(test_length, exog=exog_test)
+    predict = pd.DataFrame(predict, columns=['forecast'])
+    predict.index.name = "time"
     return predict
 
 
@@ -36,6 +38,8 @@ def run_and_save_SARIMA_model(train, test_length, config):
     model = SARIMAX(train, order=order, seasonal_order=sorder, trend=trend)
     model_fit = model.fit()
     predict = model_fit.forecast(test_length)
+    predict = pd.DataFrame(predict, columns=['forecast'])
+    predict.index.name = "time"
     return predict
 
 
