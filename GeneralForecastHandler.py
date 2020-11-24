@@ -1,11 +1,11 @@
 from datetime import datetime, timedelta
-from RenewablesEnergyService.GeneralForecastHandler import run_and_save_S_ARIMAX_model, run_and_save_SARIMA_model
+from GeneralForecastHandler import run_and_save_S_ARIMAX_model, run_and_save_SARIMA_model
 
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 import pandas as pd
 
-from RenewablesEnergyService.GenerationDataController import calculate_percentage_and_combine_data
-from RenewablesEnergyService.GeneralDataHandler import get_and_clean_historical_data
+from GenerationDataController import calculate_percentage_and_combine_data
+from GeneralDataHandler import get_and_clean_historical_data
 
 monthly_config = [
     [[(2, 0, 2), (2, 1, 1, 4), 'n'], "SARIMA"],  # January
