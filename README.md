@@ -30,7 +30,6 @@ forecast.to_csv("/content/drive/My Drive/day-ahead-forecasts/Forecast_{}_AT-{}.c
 ## Google Colab:
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1r8YfXX_WGrFXnIG-pOuqVZ0Ch4o4X6n2)
 
-Hyphens
 
 ## Day-Ahead Forecasts: 
 https://drive.google.com/drive/folders/1cCKBiaA3cE1-ojXtQ35jiX-C2t2GB3NO
