@@ -1,7 +1,14 @@
-First install the requirements using the following command:
-pip install -r requirements.txt
+# Percentage of Renewables Energy Generation Day-Ahead Forecasting Service 
+## Descrioption
+Forecasting generation of renewables for the Day-Ahead for Germany.
+Author: Amirhossein Shaafieyoun [Email Address](amirhoseinshafieyoun@gmail.com)
 
-Hyphens
+## Requirements:
+Install requirements using the following command
+```bash
+pip install -r requirements.txt
+```
+
 
 # Usage:
 
@@ -19,8 +26,6 @@ from datetime import datetime,timedelta
 forecast = GeneralForecastHandler.get_forecasts_for_today()
 forecast.to_csv("/content/drive/My Drive/day-ahead-forecasts/Forecast_{}_AT-{}.csv".format((datetime.today() + timedelta(days=1)).strftime('%Y-%m-%d'),datetime.today().strftime("%Y-%m-%d %H:%M:%S")))
 ```
-
-Hyphens
 
 ## Google Colab:
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1kDBQs4LzLiDY4TgQ2f_j2Vn7sGQZo5gi#scrollTo=6j6oKQdiNFnK)
