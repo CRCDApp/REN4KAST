@@ -27,9 +27,9 @@ def run_and_save_S_ARIMAX_model(train, test_length, exog_train, exog_test, confi
     model = SARIMAX(train, order=order, seasonal_order=sorder, trend=trend, exog=exog_train)
     model_fit = model.fit()
     predict = model_fit.forecast(test_length, exog=exog_test)
-    predict = pd.DataFrame(predict, columns=['forecast'])
-    predict.index.name = "time"
-    return predict
+    df = pd.DataFrame(predict, columns=['forecast'])
+    df.index.name = "time"
+    return df
 
 
 # training and getting the forecasts for SARIMA models
@@ -38,9 +38,9 @@ def run_and_save_SARIMA_model(train, test_length, config):
     model = SARIMAX(train, order=order, seasonal_order=sorder, trend=trend)
     model_fit = model.fit()
     predict = model_fit.forecast(test_length)
-    predict = pd.DataFrame(predict, columns=['forecast'])
-    predict.index.name = "time"
-    return predict
+    df = pd.DataFrame(predict, columns=['forecast'])
+    df.index.name = "time"
+    return df
 
 
 # Auto selecting the best model for current month, gathering data and returning the model forecasts.
