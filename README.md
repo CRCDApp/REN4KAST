@@ -1,7 +1,11 @@
 # Percentage of Renewables Energy Generation Day-Ahead Forecasting Service 
 ## Descrioption
-Forecasting generation of renewables for the Day-Ahead for Germany.
-Author: Amirhossein Shaafieyoun [Email Address](amirhoseinshafieyoun@gmail.com)
+Forecasting percentage of renewable energy generation for the Day-Ahead for Germany.
+
+Author: Amirhossein Shaafieyoun.
+
+Supervisor: Prof. Dr. Robert Basmadjian
+
 
 ## Requirements:
 Install requirements using the following command
@@ -13,23 +17,15 @@ pip install -r requirements.txt
 # Usage:
 
 ## Flask Server:
+Use the following code to start the server:
 ```bash
 from main import run_server
 run_server()
 ```
 
-# Getting forecasts
-```bash
-import GeneralForecastHandler
-from datetime import datetime,timedelta
-
-forecast = GeneralForecastHandler.get_forecasts_for_today()
-forecast.to_csv("/content/drive/My Drive/day-ahead-forecasts/Forecast_{}_AT-{}.csv".format((datetime.today() + timedelta(days=1)).strftime('%Y-%m-%d'),datetime.today().strftime("%Y-%m-%d %H:%M:%S")), columns=forecast.columns)
-```
+Then send a GET request to `/getForecasts` endpoint. 
+It returns a CSV file containing day-ahead forecasts.
 
 ## Google Colab:
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1r8YfXX_WGrFXnIG-pOuqVZ0Ch4o4X6n2)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1xNS2hNAQXoVFncymC0HRh8YThbVVAsGn)
 
-
-## Day-Ahead Forecasts: 
-https://drive.google.com/drive/folders/1cCKBiaA3cE1-ojXtQ35jiX-C2t2GB3NO
