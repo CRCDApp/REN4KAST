@@ -6,9 +6,13 @@ app = Flask(__name__)
 
 run_with_ngrok(app)  # starts ngrok when the app is run
 
-
 @app.route("/")
 def home():
+    print("Renewable Energy Generation Forecasting Service")
+    print("Please use /getForecasts endpoint to get the forecasts")
+
+@app.route("/getForecasts", methods=["GET"])
+def forecast():
     forecast = get_forecasts_for_today()
     resp = make_response(forecast.to_csv(columns=forecast.columns))
     resp.headers["Content-Disposition"] = "attachment; filename=export.csv"
