@@ -24,7 +24,7 @@ import GeneralForecastHandler
 from datetime import datetime,timedelta
 
 forecast = GeneralForecastHandler.get_forecasts_for_today()
-forecast.to_csv("/content/drive/My Drive/day-ahead-forecasts/Forecast_{}_AT-{}.csv".format((datetime.today() + timedelta(days=1)).strftime('%Y-%m-%d'),datetime.today().strftime("%Y-%m-%d %H:%M:%S")))
+forecast.to_csv("/content/drive/My Drive/day-ahead-forecasts/Forecast_{}_AT-{}.csv".format((datetime.today() + timedelta(days=1)).strftime('%Y-%m-%d'),datetime.today().strftime("%Y-%m-%d %H:%M:%S")), columns=forecast.columns)
 ```
 
 ## Google Colab:
