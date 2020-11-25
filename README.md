@@ -4,7 +4,7 @@ Forecasting percentage of renewable energy generation for the Day-Ahead for Germ
 
 Author: Amirhossein Shaafieyoun.
 
-Supervisor: Prof. Dr. Robert Basmadjian
+Supervisor: Prof. Dr. Robert Basmadjian.
 
 
 ## Requirements:
