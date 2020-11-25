@@ -67,7 +67,7 @@ def get_and_clean_historical_data(start, end, timezone):
 
     result = pd.concat([filledData_spline, average_ghi], axis=1, sort=False)
     # appending the windspeed and GHI data (exogenous params) for today and tomorrow
-    return result.append(get_and_clean_real_time_data(cities, longitude, latitude, start, end))
+    return result.append(get_and_clean_real_time_data(cities, longitude, latitude))
 
 
 # Getting exogenous params for today and tomorrow
@@ -100,7 +100,9 @@ def get_today_and_tomorrow_exog_data_request(latitude, longitude, start, end, co
 
 
 # getting exogenous data from today and tomorrow for all cities and taking average
-def get_and_clean_real_time_data(cities, longitude, latitude, start, end):
+def get_and_clean_real_time_data(cities, longitude, latitude):
+    start = (datetime.today()).strftime('%Y-%m-%d')	
+    end = (datetime.today() + timedelta(days=1)).strftime('%Y-%m-%d')
     today_data = []
     for i in range(len(cities)):
         today_data.append(
