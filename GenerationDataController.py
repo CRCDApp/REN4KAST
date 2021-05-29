@@ -17,10 +17,10 @@ def get_entsoe_data(start, end, expected_length):
     entsoe_data.index = entsoe_data.index.tz_convert('Etc/GMT')
 
     # Fixing missing and null values for last few datapoints (today)
-    last_dp = entsoe_data.loc[[entsoe_data.index[-1]]]
-    for i in range(expected_length - len(entsoe_data)):
-        entsoe_data = entsoe_data.append(last_dp, ignore_index=False)
-    entsoe_data = entsoe_data.ffill()
+    #last_dp = entsoe_data.loc[[entsoe_data.index[-1]]]
+    #for i in range(expected_length - len(entsoe_data)):
+    #    entsoe_data = entsoe_data.append(last_dp, ignore_index=False)
+    #entsoe_data = entsoe_data.ffill()
 
     # changing type from non-type to float. because later we want to calculate the average among all cities
     entsoe_data = entsoe_data.apply(pd.to_numeric)
@@ -53,7 +53,7 @@ def calculate_renewables_percentage(start, end, expected_length):
     RenForecast = generation_data.drop(columns=['Biomass', 'Fossil Brown coal/Lignite', 'Fossil Gas',
                                                 'Fossil Hard coal', 'Fossil Oil', 'Geothermal', 'Hydro Pumped Storage',
                                                 'Hydro Run-of-river and poundage', 'Hydro Water Reservoir', 'Nuclear',
-                                                'Other', 'Waste', ('Other renewable', 'Actual Consumption'),
+                                                'Other', 'Waste', #('Other renewable', 'Actual Consumption'),
                                                 ('Solar', 'Actual Consumption'),
                                                 ('Wind Onshore', 'Actual Consumption')])
 
